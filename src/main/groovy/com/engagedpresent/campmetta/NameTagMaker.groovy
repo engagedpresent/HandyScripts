@@ -15,7 +15,7 @@ class NameTagMaker {
     static String REGULAR_FONT = "/Users/nguyen/Projects/HandyScripts/OpenSans-Regular.ttf"
     static String EXTRA_BOLD_FONT = "/Users/nguyen/Projects/HandyScripts/OpenSans-ExtraBold.ttf"
 
-    Collection<String> getParticipants(String filename) {
+    Collection<String> getEntries(String filename) {
         new File(filename).readLines()
     }
 
@@ -25,26 +25,31 @@ class NameTagMaker {
         document.open()
 
         Rectangle cropbox = new Rectangle(0.0, 0.0, 599.0, 792.0)
+        //Rectangle cropbox = new Rectangle(0.0, 0.0, 640, 870)
         int left = cropbox.left
         int right = cropbox.right
         int top = cropbox.top
         int bottom = cropbox.bottom
-        int midX = cropbox.right / 2
+        int midX = (right - left) / 2
 
         int unitPerInch = right / 8.5
 
         int marginX = ((8.5 / 2) - 3.5) * unitPerInch
+
         int imageYOffset = 75
-        int nameYOffset = 25
+        int nameYOffset = 45
+        int activityYOffset = 25
+        int groupYOffset = 75
+        int groupXOffset = 5
 
         CMYKColor blackColor = new CMYKColor(0.75f, 0.68f, 0.67f, 0.89f)
 
-        def participants = getParticipants(inputFilename)
+        def entries = getEntries(inputFilename)
         int currentIndex = 0
         int pageNumber = 0
         int extraEmptyTags = 5
 
-        while (currentIndex < (participants.size() + extraEmptyTags)) {
+        while (currentIndex < (entries.size() + extraEmptyTags)) {
             pageNumber++
 
             boolean oddPage = (pageNumber % 2 == 1)
@@ -59,12 +64,12 @@ class NameTagMaker {
                 canvas.lineTo(midX, top)
                 canvas.closePathStroke()
 
-                canvas.moveTo(left + marginX, bottom)
-                canvas.lineTo(left + marginX, top)
+                canvas.moveTo(left +  marginX, bottom)
+                canvas.lineTo(left +  marginX, top)
                 canvas.closePathStroke()
 
-                canvas.moveTo(right - marginX, bottom)
-                canvas.lineTo(right - marginX, top)
+                canvas.moveTo(right -  marginX, bottom)
+                canvas.lineTo(right -  marginX, top)
                 canvas.closePathStroke()
             }
 
@@ -80,12 +85,19 @@ class NameTagMaker {
 
                 if (y != top) {
                     int column = 0
-                    int centerX = marginX + (cellWidth / 2)
+                    int centerX =  marginX + (cellWidth / 2)
                     int imageX = centerX - logoSize / 2
                     int imageY = posY + imageYOffset
 
                     int nameX = centerX
                     int nameY = posY + nameYOffset
+
+                    int activityX = centerX
+                    int activityY = posY + activityYOffset
+
+                    int groupX =  marginX + cellWidth - groupXOffset
+                    int groupY = posY + groupYOffset
+
                     while (column++ < 2) {
 
                         // write logo
@@ -96,25 +108,42 @@ class NameTagMaker {
 
                         // write name
                         BaseFont font = BaseFont.createFont(EXTRA_BOLD_FONT, BaseFont.IDENTITY_H, BaseFont.EMBEDDED)
+
+                        def participant = getParticipant(entries, currentIndex++, oddPage)
+                        def fontSize = 32 //getFontSize(font, name)
+
+                        def name = participant.name
                         canvas.beginText()
-
-                        def name = getParticipant(participants, currentIndex++, oddPage)
-                        def fontSize = getFontSize(font, name)
                         canvas.setFontAndSize(font, fontSize)
-
                         canvas.showTextAligned(PdfContentByte.ALIGN_CENTER, name, nameX, nameY, 0)
                         canvas.endText()
 
+                        def activity = participant.activity
+                        canvas.beginText()
+                        canvas.setFontAndSize(font, 14)
+                        canvas.showTextAligned(PdfContentByte.ALIGN_CENTER, activity, activityX, activityY, 0)
+                        canvas.endText()
+
+                        def group = participant.group
+                        canvas.beginText()
+                        canvas.setFontAndSize(font, 10)
+                        canvas.showTextAligned(PdfContentByte.ALIGN_LEFT, group, groupX, groupY, 90)
+                        canvas.endText()
+
+
+
                         imageX += cellWidth
                         nameX += cellWidth
+                        activityX += cellWidth
+                        groupX += cellWidth
                     }
                 }
 
-                y -= unitPerInch * 2
+                y -= unitPerInch * 2.125
 
                 if (oddPage) {
-                    canvas.moveTo(left + marginX, posY)
-                    canvas.lineTo(right - marginX, posY)
+                    canvas.moveTo(left +  marginX, posY)
+                    canvas.lineTo(right -  marginX, posY)
                     canvas.closePathStroke()
                 }
             }
@@ -138,22 +167,25 @@ class NameTagMaker {
         return fontSize
     }
 
-    String getParticipant(Collection<String> participants, int index, boolean oddPage) {
+    Map getParticipant(Collection<String> entries, int index, boolean oddPage) {
         def newIndex = index
         if (!oddPage) {
             newIndex = (index % 2 == 0) ? index + 1 : index - 1
         }
 
-        if (newIndex >= participants.size()) {
-            return ''
+        if (newIndex >= entries.size()) {
+            return [name:'', group: '', activity: '']
         }
 
-        return participants[newIndex]
+        def parts = entries[newIndex].split(',')
+        return [name: parts[0], group: parts[1], activity: parts[2]]
     }
 
     static void main(String[] args) {
-        new NameTagMaker().createPdf('/Users/nguyen/Projects/HandyScripts/2018DiscoverLivingDaisy.txt', '2018BodyMindSpirit_Daisy_Blue.pdf')
-        new NameTagMaker().createPdf('/Users/nguyen/Projects/HandyScripts/2018DiscoverLivingPeony.txt', '2018BodyMindSpirit_Peony_Yellow.pdf')
+        ['A', 'B', 'C', 'D'].each { group ->
+            new NameTagMaker().createPdf("/Users/nguyen/Projects/HandyScripts/2019LivingLifeToTheFullest_Group${group}.csv",
+                    "2019LivingLifeToTheFullest_Group${group}.pdf")
+        }
     }
 
 }
